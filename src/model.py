@@ -4,14 +4,14 @@ import matplotlib.pyplot as plt
 
 class Nbody:
 
-    def __init__(self, masses, x_pos, y_pos, ux ,uy ,dt , time ,G=1.0):
+    def __init__(self, masses, x_pos, y_pos, ux ,uy ,dt,G=39.478):
         self.masses = masses
         self.x_pos = x_pos
         self.y_pos = y_pos
-        self.vx = ux
-        self.vy = uy
+        self.ux = ux
+        self.uy = uy
         self.dt = dt
-        self.time = time
+
         self.G = G
 
 
@@ -63,13 +63,13 @@ class Nbody:
         vx (list): List of x velocities for each mass.
         vy (list): List of y velocities for each mass.
         """
-        ax, ay = self.acceleration()
-        vx = np.zeros(len(self.masses))
-        vy = np.zeros(len(self.masses))
 
-        for i in range(len(self.masses)):
-            vx[i] += ax[i] * self.dt + self.ux[i]
-            vy[i] += ay[i] * self.dt + self.uy[i]
+        ax, ay = self.acceleration()
+    
+
+        vx = self.ux + ax * self.dt
+        vy = self.uy + ay * self.dt
+
 
         return vx, vy
 
@@ -85,12 +85,17 @@ class Nbody:
         y_pos (list): List of y positions for each mass.
         """
         vx, vy = self.velocity()
-        x = np.zeros(len(self.masses))
-        y = np.zeros(len(self.masses))
 
-        for i in range(len(self.masses)):
-            x[i] += vx[i] * self.dt + self.x_pos[i]
-            y[i] += vy[i] * self.dt + self.y_pos[i]
+        x = self.x_pos + vx * self.dt
+        y = self.y_pos + vy * self.dt
+
+        # Update the current position and velocity
+        self.x_pos = x
+        self.y_pos = y
+        self.ux = vx
+        self.uy = vy
 
         return x,y
+
+    
 
