@@ -97,5 +97,26 @@ class Nbody:
 
         return x,y
 
+    def com_frame(self):
+        
+        """
+        Calculate the center of mass frame for the system of masses.
+
+        Returns:
+        com_x (float): x position of the center of mass.
+        com_y (float): y position of the center of mass.
+        com_vx (float): x velocity of the center of mass.
+        com_vy (float): y velocity of the center of mass.
+        """
+        total_mass = np.sum(self.masses)
+        com_x = np.sum(self.masses * self.x_pos) / total_mass
+        com_y = np.sum(self.masses * self.y_pos) / total_mass
+
+        # com_vx = np.sum(self.masses * self.ux) / total_mass
+        # com_vy = np.sum(self.masses * self.uy) / total_mass
+
+        return com_x, com_y
+
+
     
 
