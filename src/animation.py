@@ -6,14 +6,12 @@ mpl.rcParams["animation.ffmpeg_path"] = "/usr/bin/ffmpeg"
 
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, FFMpegWriter
-
 from model import Nbody
 
 
-# ============================================================
-# INITIAL CONDITIONS
-# ============================================================
+# initial conditions for the N-body simulation
 
+# masses in solar masses
 masses = np.array([
     1.0,
     1.660e-7,
@@ -26,6 +24,7 @@ masses = np.array([
     5.151e-5
 ])
 
+# average orbital distances from Sun in AU
 X = np.array([
     0.0,
     0.387,
@@ -38,10 +37,13 @@ X = np.array([
     30.07
 ])
 
+# y positions (initially zero)
 y = np.zeros(len(masses))
 
+# x velocities (initially zero)
 ux = np.zeros(len(masses))
 
+# y velocities
 uy = np.array([
     0.0,
     10.07,
@@ -56,11 +58,6 @@ uy = np.array([
 
 dt = 0.01
 
-
-# ============================================================
-# N-BODY SYSTEM
-# ============================================================
-
 nbody = Nbody(
     masses,
     X,
@@ -70,10 +67,6 @@ nbody = Nbody(
     dt
 )
 
-
-# ============================================================
-# SIMULATION
-# ============================================================
 
 N = 10000
 
@@ -94,10 +87,6 @@ for i in range(N):
 print("Simulation finished")
 
 
-# ============================================================
-# REDUCE NUMBER OF ANIMATION FRAMES
-# ============================================================
-
 # Use every 20th simulation step
 
 step = 20
@@ -107,11 +96,8 @@ frames = range(0, N, step)
 print("Number of animation frames:", len(frames))
 
 
-# ============================================================
-# FIGURE
-# ============================================================
 
-fig, ax = plt.subplots(figsize=(8, 8))
+fig, ax = plt.subplots(figsize=(16, 8))
 
 ax.set_xlim(-35, 35)
 ax.set_ylim(-35, 35)
@@ -125,22 +111,12 @@ ax.set_title("N-Body Simulation")
 
 ax.grid()
 
-
-# ============================================================
-# BODIES
-# ============================================================
-
 bodies, = ax.plot(
     [],
     [],
     "o",
     markersize=5
 )
-
-
-# ============================================================
-# TRAILS
-# ============================================================
 
 trails = []
 
@@ -153,11 +129,6 @@ for i in range(len(masses)):
     )
 
     trails.append(trail)
-
-
-# ============================================================
-# UPDATE
-# ============================================================
 
 def update(frame):
 
@@ -178,10 +149,6 @@ def update(frame):
     return [bodies] + trails
 
 
-# ============================================================
-# ANIMATION
-# ============================================================
-
 print("Creating animation...")
 
 animation = FuncAnimation(
@@ -194,10 +161,6 @@ animation = FuncAnimation(
 
 print("Animation object created")
 
-
-# ============================================================
-# SAVE
-# ============================================================
 
 print("Saving MP4...")
 

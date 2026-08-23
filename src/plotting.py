@@ -44,15 +44,21 @@ for i in range(N):
     x_pos[:, i] = X
     y_pos[:, i] = Y
 
-plt.plot(x_pos[0 , :], y_pos[0 , :], label='Mass 1')
-plt.plot(x_pos[1 , :], y_pos[1 , :], label='Mass 2')
-plt.plot(x_pos[2 , :], y_pos[2 , :], label='Mass 3')
-plt.plot(x_pos[3 , :], y_pos[3 , :], label='Mass 4')
-plt.plot(x_pos[4 , :], y_pos[4 , :], label='Mass 5')
-plt.plot(x_pos[5 , :], y_pos[5 , :], label='Mass 6')
-plt.plot(x_pos[6 , :], y_pos[6 , :], label='Mass 7')
-plt.plot(x_pos[7 , :], y_pos[7 , :], label='Mass 8')
-plt.plot(x_pos[8 , :], y_pos[8 , :], label='Mass 9')
+labels = [
+    "Sun",
+    "Mercury",
+    "Venus",
+    "Earth",
+    "Mars",
+    "Jupiter",
+    "Saturn",
+    "Uranus",
+    "Neptune"
+]
+
+for i in range(len(masses)):
+    plt.plot(x_pos[i, :], y_pos[i, :], label=labels[i])
+
 plt.xlabel('X Position')
 plt.ylabel('Y Position')
 plt.title('N-Body Simulation')
