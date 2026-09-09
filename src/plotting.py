@@ -49,8 +49,10 @@ for i in range(N):
 X_xom = np.zeros_like(x_pos)
 Y_xom = np.zeros_like(y_pos)
 
+com_x, com_y = nbody.com_frame()
+
 for i in range(N):
-    com_x, com_y = nbody.com_frame()
+    
     X_xom[:, i] = x_pos[:, i] - com_x
     Y_xom[:, i] = y_pos[:, i] - com_y
 
