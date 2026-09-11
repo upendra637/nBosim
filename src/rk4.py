@@ -1,6 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 G=6.67430e-11  # gravitational constant in m^3 kg^-1 s^-2
+M_sun = 1.989e30             # kg
+AU = 1.495978707e11          # m
 
 ##computing acceleration
 def calculate_acceleration(masses, positions):
@@ -37,41 +40,75 @@ def rk4_step(positions, velocities, masses, dt):
     return new_positions, new_velocities
 
 ## Solar System Data
-names=["Sun", "Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune"]
-masses=np.array([
-    1.989e30,      # Sun
-    3.301e23,      # Mercury
-    4.867e24,      # Venus
-    5.972e24,      # Earth
-    6.417e23,      # Mars
-    1.898e27,      # Jupiter
-    5.683e26,      # Saturn
-    8.681e25,      # Uranus
-    1.024e26       # Neptune
-])
-semi_major_axes=np.array([
-    0.0,
-    5.791e10,
-    1.082e11,
-    1.496e11,
-    2.279e11,
-    7.785e11,
-    1.434e12,
-    2.871e12,
-    4.495e12
+names=["Sun", "Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Pluto"]
+#masses in solar mass
+masses_solar = np.array([
+    1.000000,               # Sun
+    3.301e23 / M_sun,       # Mercury
+    4.867e24 / M_sun,       # Venus
+    5.972e24 / M_sun,       # Earth
+    6.417e23 / M_sun,       # Mars
+    1.898e27 / M_sun,       # Jupiter
+    5.683e26 / M_sun,       # Saturn
+    8.681e25 / M_sun,       # Uranus
+    1.024e26 / M_sun,       # Neptune
+    1.303e22 / M_sun        # Pluto
 ])
 
-eccentricities = np.array([
-    0.0,
-    0.2056,
-    0.0068,
-    0.0167,
-    0.0934,
-    0.0489,
-    0.0565,
-    0.0463,
-    0.0095
+#converting masses to kg
+masses = masses_solar * M_sun
+
+
+#semi-major axes in Au
+semi_major_axes_AU = np.array([
+    0.0,       # Sun
+    0.387,     # Mercury
+    0.723,     # Venus
+    1.000,     # Earth
+    1.524,     # Mars
+    5.203,     # Jupiter
+    9.537,     # Saturn
+    19.191,    # Uranus
+    30.070,    # Neptune
+    39.48      # Pluto
 ])
+
+#converting semi-major axes to meters
+semi_major_axes = semi_major_axes_AU * AU
+
+#Eccentricities of the planets
+
+eccentricities = np.array([
+    0.0,       # Sun
+    0.2056,    # Mercury
+    0.0068,    # Venus
+    0.0167,    # Earth
+    0.0934,    # Mars
+    0.0489,    # Jupiter
+    0.0565,    # Saturn
+    0.0463,    # Uranus
+    0.0095,    # Neptune
+    0.2488     # Pluto
+])
+
+#Inclinations of the planets in degrees
+inclinations = np.array([
+    0.0,      # Sun
+    7.00,     # Mercury
+    3.39,     # Venus
+    0.00,     # Earth
+    1.85,     # Mars
+    1.31,     # Jupiter
+    2.49,     # Saturn
+    0.77,     # Uranus
+    1.77,     # Neptune
+    17.16     # Pluto
+])
+
+# Convert degrees to radians
+inclinations = np.radians(inclinations)
+
+
 
 ## inintial positions and velocities
 n=len(masses)
@@ -84,17 +121,74 @@ mu=G * masses[0]  # gravitational parameter for the Sun
 
 for i in range(1, n):
     r_perihelion = semi_major_axes[i] * (1 - eccentricities[i])
-    positions[i] = [r_perihelion, 0, 0]
     v_perihelion = np.sqrt(mu * (2/r_perihelion - 1/semi_major_axes[i]))
-    velocities[i] = [0, v_perihelion, 0]
+    inc=inclinations[i]
+    positions[i] = [r_perihelion, 0, 0] 
+    velocities[i] = [0, v_perihelion*np.cos(inc), v_perihelion*np.sin(inc)]
+
+##Orbital Periods
+# Number of numerical steps per orbital period
+steps_per_orbit = 1000
+
+
+# Orbital periods
+orbital_periods = np.zeros(n)
+
+
+for i in range(1, n):
+
+    # Kepler's third law
+    #
+    # T = 2*pi*sqrt(a^3 / GM)
+    #
+
+    orbital_periods[i] = (2 * np.pi* np.sqrt(semi_major_axes[i]**3/ (G * masses[0])))
+
+#Planet specific time steps
+dt_planets = np.zeros(n)
+for i in range(1, n):
+    dt_planets[i] = orbital_periods[i] / steps_per_orbit
+
+#Display orbital periods and time steps
+print("\nPlanetary timestep information")
+print("--------------------------------------------")
+for i in range(1, n):
+    period_years = (
+        orbital_periods[i]
+        / (365.25 * 24 * 3600)
+    )
+
+    timestep_days = (
+        dt_planets[i]
+        / (24 * 3600)
+    )
+
+    print(
+        f"{names[i]:8s} : "
+        f"T = {period_years:8.3f} years   "
+        f"dt = {timestep_days:8.4f} days"
+    )
+
+#Global time step for the simulation
+dt = np.min(dt_planets[1:])  
+print("\n--------------------------------------------")
+
+print(
+    f"Global timestep = "
+    f"{dt / DAY if 'DAY' in globals() else dt/(24*3600):.4f} days"
+)
+
 
 
 ## Simulation parameters
 DAY=24*60*60
-dt=0.5*DAY  # time step in seconds
-years=84
+years=165
 total_time=years*365.25*DAY  # total simulation time in seconds
 steps=int(total_time/dt)
+print(f"\nTotal simulation time = {years} years")
+
+print(f"Total integration steps = {steps}")
+
 
 trajectories = np.zeros((steps, n, 3))
 
@@ -103,18 +197,56 @@ for step in range(steps):
     new_positions, new_velocities = rk4_step(positions, velocities, masses, dt)
     positions, velocities = new_positions, new_velocities
 
-##Plotting the orbits of the planets
-plt.figure(figsize=(10, 10))
+#Converting trajectories to AU for plotting
+trajectories_AU = trajectories / AU
+
+##3D Plot the orbits of the planets
+fig = plt.figure(figsize=(10, 10))
+
+ax = fig.add_subplot(111,projection='3d')
+
+
+# Plot planetary trajectories
 for i in range(1, n):
-    plt.plot(trajectories[:, i, 0], trajectories[:, i, 1], label=names[i])
-plt.scatter(trajectories[:, 0, 0], trajectories[:, 0, 1], color='yellow', label='Sun', s=100)
-plt.title('N_body Solar System Simulation using RK4 Method')
-plt.xlabel('x position (m)')
-plt.ylabel('y position (m)')
-plt.legend()
-plt.axis('equal')
-plt.grid()
-plt.show()  
+
+    ax.plot(
+        trajectories_AU[:, i, 0],
+        trajectories_AU[:, i, 1],
+        trajectories_AU[:, i, 2],
+        label=names[i]
+    )
+
+
+# Plot Sun
+ax.scatter(
+    trajectories_AU[:, 0, 0],
+    trajectories_AU[:, 0, 1],
+    trajectories_AU[:, 0, 2],
+    color='yellow',
+    s=5,
+    label='Sun'
+)
+
+
+# ============================================================
+# Labels
+# ============================================================
+
+ax.set_title(
+    '3D N-Body Solar System Simulation using RK4',
+    fontsize=14
+)
+
+ax.set_xlabel('X position (AU)')
+
+ax.set_ylabel('Y position (AU)')
+
+ax.set_zlabel('Z position (AU)')
+
+
+ax.legend()
+
+plt.show()
 
 
 
