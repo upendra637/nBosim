@@ -214,5 +214,22 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
+# Generated CSV/data files
+*.csv
+
+# Generated plots
+*.png
+*.jpg
+*.jpeg
+*.pdf
+*.svg
+
+# Generated animations
+*.gif
+*.mp4
+*.avi
+*.mov
+*.webm
+
 # Streamlit
 .streamlit/secrets.toml
