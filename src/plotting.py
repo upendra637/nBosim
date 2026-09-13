@@ -1,60 +1,14 @@
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
-from model import Nbody
 
 
-# masses (solar masses)
-masses = np.array(
-    [1.0,
-    1.660e-7, 
-    2.448e-6, 
-    3.003e-6, 
-    3.227e-7, 
-    9.545e-4, 
-    2.857e-4, 
-    4.366e-5, 
-    5.151e-5]
-)
+# Read the CSV file
+data = pd.read_csv("Data/positions.csv")
 
+dt = 0.001
+N = 250000
 
-# average orbital distances from Sun (AU)
-X = np.array(
-    [0.0, 0.387, 0.723, 1.000, 1.524,5.203, 9.537, 19.191, 30.07]
-    )
-
-y = np.zeros_like(X)  # All planets start on the x-axis
-
-# average orbital velocities (AU/year)
-uy = np.array(
-    [0.0, 10.07, 7.39, 6.28, 5.09,2.62, 2.12, 1.48, 1.14]
-    )
-
-ux = np.array(
-    [0.0, 0.0, 0.0, 0.0, 0.0,0.0, 0.0, 0.0, 0.0]
-    )
-
-dt = 0.01
-nbody = Nbody(masses, X, y, ux, uy, dt)
-N = 10000
-
-x_pos = np.zeros((len(masses), N))
-y_pos = np.zeros((len(masses), N))
-
-for i in range(N):
-    
-    X , Y = nbody.position()
-    x_pos[:, i] = X
-    y_pos[:, i] = Y
-
-X_xom = np.zeros_like(x_pos)
-Y_xom = np.zeros_like(y_pos)
-
-com_x, com_y = nbody.com_frame()
-
-for i in range(N):
-    
-    X_xom[:, i] = x_pos[:, i] - com_x
-    Y_xom[:, i] = y_pos[:, i] - com_y
 
 labels = [
     "Sun",
@@ -65,17 +19,86 @@ labels = [
     "Jupiter",
     "Saturn",
     "Uranus",
-    "Neptune"
+    "Neptune",
+    "Pluto"
 ]
 
-# for i in range(len(masses)):
-#     plt.plot(x_pos[i, :], y_pos[i, :], label=labels[i])
+period = np.array([
+    0.2408,    # Sun
+    0.2408,    # Mercury
+    0.6152,    # Venus
+    1.0000,    # Earth
+    1.8808,    # Mars
+    11.862,    # Jupiter
+    29.457,    # Saturn
+    84.017,    # Uranus
+    164.8,     # Neptune
+    248.0      # Pluto
+])
 
-for i in range(len(masses)):
-    plt.plot(X_xom[i, :], Y_xom[i, :], label=labels[i])
 
-plt.xlabel('X Position')
-plt.ylabel('Y Position')
-plt.title('N-Body Simulation')
-plt.legend()
+# Store positions
+x_pos = np.zeros((len(labels), len(data)))
+y_pos = np.zeros((len(labels), len(data)))
+z_pos = np.zeros((len(labels), len(data)))
+
+
+for i in range(len(labels)):
+
+    x_pos[i, :] = data[labels[i] + "_x"].values
+    y_pos[i, :] = data[labels[i] + "_y"].values
+    z_pos[i, :] = data[labels[i] + "_z"].values
+
+
+# Plot
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+
+
+for i in range(1, len(labels)):
+
+    angle = np.unwrap(np.arctan2(y_pos[i, :], x_pos[i, :]))
+
+    angle_change = angle - angle[0]
+
+    orbit = np.where(angle_change >= 2*np.pi)[0]
+
+    if len(orbit) > 0:
+        steps = orbit[0]
+
+        ax.plot(
+            x_pos[i, :steps],
+            y_pos[i, :steps],
+            z_pos[i, :steps],
+            label=labels[i]
+        )
+    else:
+        ax.plot(
+            x_pos[i, :],
+            y_pos[i, :],
+            z_pos[i, :],
+            label=labels[i]
+        )
+
+ax.scatter(
+    x_pos[0, 0],
+    y_pos[0, 0],
+    z_pos[0, 0],
+    color='yellow',
+    s=70,
+    label='Sun'
+)
+
+ax.set_xlabel("X Position (AU)")
+ax.set_ylabel("Y Position (AU)")
+ax.set_zlabel("Z Position (AU)")
+
+ax.tick_params(axis='x', labelsize=10)
+ax.tick_params(axis='y', labelsize=10)
+ax.tick_params(axis='z', labelsize=10)
+
+ax.set_title("3D N-Body Simulation")
+
+ax.legend()
+
 plt.show()
