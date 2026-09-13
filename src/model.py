@@ -353,10 +353,15 @@ X_xom = np.zeros_like(x_pos)
 Y_xom = np.zeros_like(y_pos)
 Z_xom = np.zeros_like(z_pos)
 
+# velocity relative to center of mass
+vx = np.zeros_like(x_pos)
+vy = np.zeros_like(y_pos)
+vz = np.zeros_like(z_pos)
 
+# calculate positions relative to center of mass
 for i in range(N):
 
-    X_xom[:, i], Y_xom[:, i], Z_xom[:, i], _, _, _ = relative_position(
+    X_xom[:, i], Y_xom[:, i], Z_xom[:, i], vx[:, i], vy[:, i], vz[:, i] = relative_position(
         masses,
         x_pos[:, i],
         y_pos[:, i],
@@ -364,6 +369,23 @@ for i in range(N):
         ux,
         uy,
         uz
+    )
+
+# Calculate energy
+kinetic_energy = np.zeros(N)
+potential_energy = np.zeros(N)
+total_energy = np.zeros(N)
+
+for i in range(N):
+
+    kinetic_energy[i], potential_energy[i], total_energy[i] = energy(
+        masses,
+        x_pos[:, i],
+        y_pos[:, i],
+        z_pos[:, i],
+        vx[:, i],
+        vy[:, i],
+        vz[:, i]
     )
 
 
@@ -395,5 +417,15 @@ for i in range(len(masses)):
 df = pd.DataFrame(data)
 
 df.to_csv("Data/positions.csv", index=False)
+
+# Save energy data to CSV
+
+energy_data = pd.DataFrame({
+    "Kinetic Energy": kinetic_energy,
+    "Potential Energy": potential_energy,
+    "Total Energy": total_energy
+})
+
+energy_data.to_csv("Data/energy.csv", index=False)
 
 
