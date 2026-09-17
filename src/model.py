@@ -326,6 +326,11 @@ x_pos = np.zeros((len(masses), N))
 y_pos = np.zeros((len(masses), N))
 z_pos = np.zeros((len(masses), N))
 
+# Store velocities
+ux_data = np.zeros((len(masses), N))
+uy_data = np.zeros((len(masses), N))
+uz_data = np.zeros((len(masses), N))
+
 
 for i in range(N):
 
@@ -343,6 +348,10 @@ for i in range(N):
     x_pos[:, i] = X
     y_pos[:, i] = Y
     z_pos[:, i] = Z
+
+    ux_data[:, i] = ux
+    uy_data[:, i] = uy
+    uz_data[:, i] = uz
 
     y = Y
     z = Z
@@ -366,9 +375,9 @@ for i in range(N):
         x_pos[:, i],
         y_pos[:, i],
         z_pos[:, i],
-        ux,
-        uy,
-        uz
+        ux_data[:, i],
+        uy_data[:, i],
+        uz_data[:, i]
     )
 
 # Calculate energy
