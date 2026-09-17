@@ -1,0 +1,3 @@
+Numerical method: RK4
+Simulation length: 165 years
+Relative energy error: 7.971413e-06
