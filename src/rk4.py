@@ -18,6 +18,21 @@ def calculate_acceleration(masses, positions):
                 accelerations[i] += G * masses[j] * r / r_mag**3
     return accelerations
 
+##Computing the energy of the system
+def calculate_energy(masses,positions,velocities):
+    n=len(masses)
+    kinetic_energy=0
+    for i in range(n):
+        kinetic_energy+=0.5*masses[i]*np.linalg.norm(velocities[i])**2
+    potential_energy=0
+    
+    for i in range(n):
+        for j in range(i+1,n):
+            r_mag=np.linalg.norm(positions[i]-positions[j])
+            potential_energy-=G*masses[i]*masses[j]/r_mag
+    total_energy=kinetic_energy+potential_energy
+    return kinetic_energy,potential_energy,total_energy
+
 ##compting the eqquations of motion
 def derivatives(positions,velocities,masses):
     dr_dt = velocities
@@ -191,11 +206,50 @@ print(f"Total integration steps = {steps}")
 
 
 trajectories = np.zeros((steps, n, 3))
+velocities_history = np.zeros((steps, n, 3))
 
+kinetic_energy_history = np.zeros(steps)
+potential_energy_history = np.zeros(steps)
+total_energy_history = np.zeros(steps)
 for step in range(steps):
+     # Store positions and velocities
     trajectories[step] = positions
+    velocities_history[step] = velocities
+
+    # Calculate energy
+    K, U, E = calculate_energy(
+        masses,
+        positions,
+        velocities
+    )
+
+    kinetic_energy_history[step] = K
+    potential_energy_history[step] = U
+    total_energy_history[step] = E
+
+
     new_positions, new_velocities = rk4_step(positions, velocities, masses, dt)
     positions, velocities = new_positions, new_velocities
+
+##Energy Conservation
+initial_energy = total_energy_history[0]
+relative_energy_error = (abs(total_energy_history - initial_energy)/ abs(initial_energy))
+
+print("\nEnergy conservation")
+print("--------------------------------------------")
+
+print(f"Initial total energy = {initial_energy:.6e} J")
+print(f"Final total energy   = {total_energy_history[-1]:.6e} J")
+
+print(
+    f"Maximum relative energy error = "
+    f"{np.max(np.abs(relative_energy_error)):.6e}"
+)
+
+print(
+    f"Final relative energy error = "
+    f"{relative_energy_error[-1]:.6e}"
+)
 
 #Converting trajectories to AU for plotting
 trajectories_AU = trajectories / AU
@@ -248,6 +302,58 @@ ax.legend()
 
 plt.show()
 
+## Energy conservation plot
+time_years = np.arange(steps) * dt / (365.25 * DAY)
 
+plt.figure(figsize=(10, 6))
+
+plt.plot(
+    time_years,
+    kinetic_energy_history,
+    label='Kinetic Energy'
+)
+
+plt.plot(
+    time_years,
+    potential_energy_history,
+    label='Potential Energy'
+)
+
+plt.plot(
+    time_years,
+    total_energy_history,
+    label='Total Energy'
+)
+
+plt.xlabel('Time (years)')
+plt.ylabel('Energy (J)')
+
+plt.title('Energy Conservation in N-Body Solar System Simulation')
+
+plt.legend()
+plt.grid(True)
+
+plt.show()
+
+##Relative Energy Error Plot
+# ============================================================
+# Plot relative energy error
+# ============================================================
+
+plt.figure(figsize=(10, 6))
+
+plt.plot(
+    time_years,
+    relative_energy_error
+)
+
+plt.xlabel('Time (years)')
+plt.ylabel('Relative Energy Error')
+
+plt.title('Relative Energy Error')
+
+plt.grid(True)
+
+plt.show()
 
 
