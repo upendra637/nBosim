@@ -697,3 +697,10 @@ plt.grid(True)
 
 plt.show()
 plt.savefig("COM_position.pdf")
+
+
+
+
+
+
+
