@@ -26,9 +26,12 @@ at the bottom to export an mp4/gif.
 """
 
 import numpy as np
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from IPython.display import HTML
+import imageio_ffmpeg
 
 # ------------------------------------------------------------------
 # 1. Bodies: Sun + Mercury through Pluto
@@ -158,7 +161,7 @@ def rk4_step(pos, vel, dt):
 # ------------------------------------------------------------------
 # 5. Run the simulation: many small RK4 steps, keep every Nth one
 # ------------------------------------------------------------------
-simulation_years = 60
+simulation_years = 165
 frames = 1500
 substeps_per_frame = 20          # fine integration steps between each displayed frame
 total_steps = frames * substeps_per_frame
@@ -281,10 +284,13 @@ def update(frame):
 animation = FuncAnimation(fig, update, frames=frames, interval=15, blit=True)
 plt.close()
 
-HTML(animation.to_jshtml())
+# Keep the optional notebook preview commented out during export; generating
+# the embedded HTML duplicates the full rendering work and creates a large blob.
+# In a notebook, uncomment this line to display the interactive preview.
+# HTML(animation.to_jshtml())
 
 # ------------------------------------------------------------------
-# Optional: save to a file instead of / in addition to viewing inline
+# Save a slow-motion MP4 (1500 frames at 15 fps = 100 seconds).
 # ------------------------------------------------------------------
-# animation.save("solar_system.mp4", writer="ffmpeg", fps=45)
-# animation.save("solar_system.gif", writer="pillow", fps=45)
+plt.rcParams["animation.ffmpeg_path"] = imageio_ffmpeg.get_ffmpeg_exe()
+animation.save("solar_system_slow_motion.mp4", writer="ffmpeg", fps=15)
