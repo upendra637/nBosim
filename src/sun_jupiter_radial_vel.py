@@ -93,7 +93,7 @@ plt.tight_layout()
 # ============================================================
 
 plt.savefig(
-    "/Users/ankitpanda/Desktop/solar_system_data/Sun_COM_velocity_vs_time.pdf",
+    "/Users/ankitpanda/Desktop/Sun_COM_velocity_vs_time.pdf",
     dpi=300,
     bbox_inches="tight"
 )
