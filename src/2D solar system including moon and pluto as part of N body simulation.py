@@ -1,0 +1,204 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+from IPython.display import HTML
+
+names = ["Sun", "Mercury", "Venus", "Earth", "Mars", "Jupiter",
+         "Saturn", "Uranus", "Neptune", "Pluto"]
+
+# mass, in solar masses (Sun = 1.0)
+mass = np.array([
+    1.0,
+    1.6601e-7,   # Mercury
+    2.4478e-6,   # Venus
+    3.0035e-6,   # Earth
+    3.2131e-7,   # Mars
+    9.5479e-4,   # Jupiter
+    2.8589e-4,   # Saturn
+    4.3662e-5,   # Uranus
+    5.1514e-5,   # Neptune
+    6.5500e-9,   # Pluto
+])
+
+
+a = np.array([0.0, 0.3871, 0.7233, 1.0000, 1.5237,
+              5.2028, 9.5388, 19.1914, 30.0611, 39.4817])       # AU
+e = np.array([0.0, 0.2056, 0.0068, 0.0167, 0.0934,
+              0.0489, 0.0565, 0.0463, 0.0086, 0.2488])          # eccentricity
+phase = np.array([0.0, 0.0, 0.7, 1.2, 2.0,
+                   2.7, 3.5, 4.0, 5.0, 1.5])                    # starting angle, radians
+
+colors = ["gold", "#b1b1b1", "#e8c39e", "#3f83ff", "#c1440e",
+          "#d9a066", "#e3c16f", "#8fd1e0", "#4166f5", "#c9a0dc"]
+
+n_bodies = len(names)
+earth_idx = names.index("Earth")
+sun_idx = names.index("Sun")
+
+G = 4 * np.pi**2   # gravitational constant in AU^3 / (yr^2 * solar mass)
+
+pos0 = np.zeros((n_bodies, 2))
+vel0 = np.zeros((n_bodies, 2))
+
+for i in range(1, n_bodies):   # skip the Sun, index 0, which starts at rest
+    r0 = a[i] * (1 - e[i])
+    direction = np.array([np.cos(phase[i]), np.sin(phase[i])])
+    tangent = np.array([-np.sin(phase[i]), np.cos(phase[i])])
+
+    pos0[i] = r0 * direction
+
+    GM_sun = G * mass[sun_idx]
+    speed = np.sqrt(GM_sun * (2 / r0 - 1 / a[i]))
+    vel0[i] = speed * tangent
+
+
+total_planet_momentum = np.sum(mass[1:, None] * vel0[1:], axis=0)
+vel0[sun_idx] = -total_planet_momentum / mass[sun_idx]
+
+
+softening = 1e-6   # tiny buffer so nothing divides by zero if two bodies coincide
+
+def acceleration(pos):
+   
+    n = pos.shape[0]
+    acc = np.zeros_like(pos)
+
+    for i in range(n):
+        diff = pos - pos[i]                          # vectors from body i to all others
+        dist_sq = np.sum(diff**2, axis=1) + softening
+        dist_cubed = dist_sq ** 1.5
+        dist_cubed[i] = np.inf                        # a body doesn't pull on itself
+
+        acc[i] = G * np.sum((mass[:, None] * diff) / dist_cubed[:, None], axis=0)
+
+    return acc
+
+
+def rk4_step(pos, vel, dt):
+    
+    k1v = vel
+    k1a = acceleration(pos)
+
+    k2v = vel + 0.5 * dt * k1a
+    k2a = acceleration(pos + 0.5 * dt * k1v)
+
+    k3v = vel + 0.5 * dt * k2a
+    k3a = acceleration(pos + 0.5 * dt * k2v)
+
+    k4v = vel + dt * k3a
+    k4a = acceleration(pos + dt * k3v)
+
+    pos_new = pos + (dt / 6) * (k1v + 2 * k2v + 2 * k3v + k4v)
+    vel_new = vel + (dt / 6) * (k1a + 2 * k2a + 2 * k3a + k4a)
+
+    return pos_new, vel_new
+
+
+simulation_years = 165
+frames = 1500
+substeps_per_frame = 20          # fine integration steps between each displayed frame
+total_steps = frames * substeps_per_frame
+dt = simulation_years / total_steps   # roughly 0.7 days per integration step
+
+pos = pos0.copy()
+vel = vel0.copy()
+
+trajectory = np.zeros((frames, n_bodies, 2))   # only the frames we'll actually display
+
+frame_i = 0
+for step in range(total_steps):
+    pos, vel = rk4_step(pos, vel, dt)
+    if (step + 1) % substeps_per_frame == 0:
+        trajectory[frame_i] = pos
+        frame_i += 1
+
+
+body_x = trajectory[:, :, 0].T
+body_y = trajectory[:, :, 1].T
+
+earth_x, earth_y = body_x[earth_idx], body_y[earth_idx]
+
+
+moon_period_years = 27.321661 / 365.25
+moon_a_real = 0.00257             # AU -- the Moon's true orbital radius
+moon_a_display = 0.35             # AU -- exaggerated, main-view only
+
+time_years = np.linspace(0, simulation_years, frames)
+moon_angle = 2 * np.pi * time_years / moon_period_years
+
+# true-scale position, relative to Earth (used by the zoomed inset)
+moon_relative_real_x = moon_a_real * np.cos(moon_angle)
+moon_relative_real_y = moon_a_real * np.sin(moon_angle)
+
+# exaggerated position, relative to Earth (used by the main view)
+moon_relative_display_x = moon_a_display * np.cos(moon_angle)
+moon_relative_display_y = moon_a_display * np.sin(moon_angle)
+
+moon_x = earth_x + moon_relative_display_x
+moon_y = earth_y + moon_relative_display_y
+
+
+fig, ax = plt.subplots(figsize=(11, 11))
+fig.patch.set_facecolor("black")
+ax.set_facecolor("black")
+
+ax.set_xlim(-42, 42)
+ax.set_ylim(-42, 42)
+ax.set_aspect("equal")
+ax.set_xlabel("X (AU)", color="white")
+ax.set_ylabel("Y (AU)", color="white")
+ax.set_title("Solar System (RK4 N-body) with the Moon", color="white")
+ax.tick_params(colors="white")
+ax.grid(True, alpha=0.15, color="gray")
+
+
+for i in range(n_bodies):
+    ax.plot(body_x[i], body_y[i], linestyle="--", alpha=0.25, color=colors[i])
+
+
+body_points = []
+for i in range(n_bodies):
+    if i == earth_idx:
+        p, = ax.plot([], [], "o", markersize=12, color=colors[i],
+                      markeredgecolor="white", markeredgewidth=1.5,
+                      label=names[i], zorder=5)
+    elif i == sun_idx:
+        p, = ax.plot([], [], "o", markersize=16, color=colors[i], label=names[i])
+    else:
+        p, = ax.plot([], [], "o", markersize=6, color=colors[i], label=names[i])
+    body_points.append(p)
+
+earth_label = ax.text(0, 0, "EARTH", color="white", fontsize=9,
+                       fontweight="bold", ha="left", va="bottom")
+
+moon_point, = ax.plot([], [], "o", markersize=5, color="lightgray",
+                       markeredgecolor="white", label="Moon", zorder=5)
+moon_orbit_line, = ax.plot([], [], linestyle=":", alpha=0.6, color="lightgray")
+
+ax.legend(loc="upper right", fontsize=8, ncol=2, facecolor="black",
+          edgecolor="gray", labelcolor="white")
+
+
+theta_ring = np.linspace(0, 2 * np.pi, 150)
+
+def update(frame):
+    for i in range(n_bodies):
+        body_points[i].set_data([body_x[i, frame]], [body_y[i, frame]])
+
+    ex, ey = earth_x[frame], earth_y[frame]
+    earth_label.set_position((ex + 1.0, ey + 1.0))
+
+    moon_point.set_data([moon_x[frame]], [moon_y[frame]])
+
+    orbit_x = ex + moon_a_display * np.cos(theta_ring)
+    orbit_y = ey + moon_a_display * np.sin(theta_ring)
+    moon_orbit_line.set_data(orbit_x, orbit_y)
+
+    return body_points + [moon_point, moon_orbit_line, earth_label]
+
+
+
+animation = FuncAnimation(fig, update, frames=frames, interval=15, blit=True)
+plt.close()
+
+HTML(animation.to_jshtml())
