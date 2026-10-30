@@ -1,3 +1,4 @@
+#3D Solar system simulation code but here Moon is not considered as part of N body rather it is added separately later
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 (registers 3D projection)
