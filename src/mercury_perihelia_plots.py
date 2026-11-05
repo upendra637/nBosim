@@ -103,3 +103,75 @@ plt.savefig(
 )
 
 plt.show()
+###################################################
+###################################################
+###################################################
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+# ============================================================
+# 1. Read the CSV file
+# ============================================================
+
+file_path = "/Users/ankitpanda/Desktop/solar_system_data/Mercury_Perihelion_Shift_COM_real.csv"
+
+
+df = pd.read_csv(file_path)
+
+# ============================================================
+# 2. Extract data using the exact CSV column names
+# ============================================================
+
+perihelion_number = df["Perihelion_2"]
+angular_shift = df["Perihelion_Shift_arcsec"]
+
+# ============================================================
+# 3. Calculate average angular shift
+# ============================================================
+
+average_shift = angular_shift.mean()
+
+print(f"Average Angular Shift = {average_shift:.6f} arcsec")
+
+# ============================================================
+# 4. Plot Angular Shift vs Perihelion Number
+# ============================================================
+
+plt.figure(figsize=(12, 6))
+
+plt.plot(
+    perihelion_number,
+    angular_shift,
+    linewidth=1.2,
+    label="Angular Shift"
+)
+
+# Plot average angular shift
+plt.axhline(
+    y=average_shift,
+    linestyle="--",
+    linewidth=1.5,
+    label=f"Average = {average_shift:.3f} arcsec"
+)
+
+plt.xlabel("Perihelion Number", fontsize=13)
+plt.ylabel("Angular Shift (arcsec)", fontsize=13)
+
+plt.title(
+    "Mercury's Perihelion Angular Shift",
+    fontsize=15
+)
+
+plt.grid(True, alpha=0.3)
+plt.legend()
+plt.tight_layout()
+
+# Save figure
+plt.savefig(
+    "/Users/ankitpanda/Desktop/Mercury_Angular_Shift_vs_Time.pdf",
+    dpi=300,
+    bbox_inches="tight"
+)
+
+plt.show()
