@@ -1,0 +1,687 @@
+# ============================================================
+# 3D SOLAR SYSTEM + JUPITER MOONS
+#
+# NASA/JPL Horizons
+#          ↓
+# 3D positions & velocities
+#          ↓
+# REBOUND N-body integration
+#          ↓
+# 3D coordinates
+#          ↓
+# Plotly 3D animation
+#
+# ============================================================
+
+import numpy as np
+import rebound
+import plotly.graph_objects as go
+
+from astroquery.jplhorizons import Horizons
+
+
+# ============================================================
+# 1. SIMULATION SETTINGS
+# ============================================================
+
+# Epoch of initial conditions
+# Julian Date
+EPOCH_JD = 2460935.5
+
+# Number of integration frames
+N_FRAMES = 1000
+
+# Simulation duration in years
+SIMULATION_YEARS = 165
+
+
+# Time step in years
+DT = SIMULATION_YEARS / N_FRAMES
+
+
+# ============================================================
+# 2. SOLAR SYSTEM BODIES
+# ============================================================
+
+PLANETS = [
+    "Sun",
+    "Mercury",
+    "Venus",
+    "Earth",
+    "Mars",
+    "Jupiter",
+    "Saturn",
+    "Uranus",
+    "Neptune"
+]
+
+
+# ============================================================
+# 3. JUPITER MOONS
+# ============================================================
+
+JUPITER_MOONS = [
+    "Io",
+    "Europa",
+    "Ganymede",
+    "Callisto",
+    "Amalthea",
+    "Himalia",
+    "Elara",
+    "Pasiphae",
+    "Sinope",
+    "Lysithea",
+    "Carme",
+    "Ananke"
+]
+
+
+# JPL Horizons numeric target IDs.  Planet names can be ambiguous because
+# Horizons also exposes their system barycenters (for example, Mercury is
+# both target 199 and barycenter 1).
+HORIZONS_IDS = {
+    "Sun": "10",
+    "Mercury": "199",
+    "Venus": "299",
+    "Earth": "399",
+    "Mars": "499",
+    "Jupiter": "599",
+    "Saturn": "699",
+    "Uranus": "799",
+    "Neptune": "899",
+    "Io": "501",
+    "Europa": "502",
+    "Ganymede": "503",
+    "Callisto": "504",
+    "Amalthea": "505",
+    "Himalia": "506",
+    "Elara": "507",
+    "Pasiphae": "508",
+    "Sinope": "509",
+    "Lysithea": "510",
+    "Carme": "511",
+    "Ananke": "512",
+}
+
+
+# ============================================================
+# 4. VISUAL RADII
+#
+# These are display radii.
+# They are NOT physical distances.
+#
+# Physical radii are used to determine relative appearance.
+# Small moons are enlarged so that they can be seen.
+# ============================================================
+
+DISPLAY_RADIUS = {
+
+    "Sun": 16,
+
+    "Mercury": 2.5,
+    "Venus": 3.5,
+    "Earth": 3.5,
+    "Mars": 3,
+
+    "Jupiter": 10,
+    "Saturn": 8,
+    "Uranus": 6,
+    "Neptune": 6,
+
+    "Io": 2.5,
+    "Europa": 2.2,
+    "Ganymede": 3.0,
+    "Callisto": 2.8,
+
+    "Amalthea": 1.5,
+    "Himalia": 1.2,
+    "Elara": 1.1,
+    "Pasiphae": 1.0,
+    "Sinope": 1.0,
+    "Lysithea": 1.0,
+    "Carme": 1.0,
+    "Ananke": 1.0
+}
+
+
+# ============================================================
+# 5. BODY MASS DATA
+#
+# Approximate masses in Solar masses.
+#
+# For the small moons, masses are extremely small.
+# JPL provides GM values for the major satellites.
+# ============================================================
+
+BODY_MASSES = {
+
+    # Sun
+    "Sun": 1.0,
+
+    # Planets
+    "Mercury": 1.6601e-7,
+    "Venus": 2.4478e-6,
+    "Earth": 3.0035e-6,
+    "Mars": 3.2272e-7,
+    "Jupiter": 9.5479e-4,
+    "Saturn": 2.8588e-4,
+    "Uranus": 4.3662e-5,
+    "Neptune": 5.1514e-5,
+
+    # Jupiter moons
+    "Io": 4.704e-8,
+    "Europa": 2.529e-8,
+    "Ganymede": 7.804e-8,
+    "Callisto": 5.666e-8,
+
+    "Amalthea": 1.300e-12,
+    "Himalia": 1.198e-12,
+
+    # Very small irregular satellites
+    # Their gravitational effect on the system is negligible.
+    "Elara": 7.0e-13,
+    "Pasiphae": 2.5e-13,
+    "Sinope": 1.0e-13,
+    "Lysithea": 5.0e-13,
+    "Carme": 3.0e-13,
+    "Ananke": 2.0e-13
+}
+
+
+# ============================================================
+# 6. GET HORIZONS VECTOR
+# ============================================================
+
+def get_horizons_state(body_name):
+
+    """
+    Obtain heliocentric/barycentric Cartesian state
+    from NASA/JPL Horizons.
+
+    Returned units:
+        position → AU
+        velocity → AU/day
+    """
+
+    obj = Horizons(
+        id=HORIZONS_IDS[body_name],
+        location="@sun",
+        epochs=EPOCH_JD
+    )
+
+    vectors = obj.vectors()
+
+    x = float(vectors["x"][0])
+    y = float(vectors["y"][0])
+    z = float(vectors["z"][0])
+
+    vx = float(vectors["vx"][0])
+    vy = float(vectors["vy"][0])
+    vz = float(vectors["vz"][0])
+
+    return np.array([x, y, z]), np.array([vx, vy, vz])
+
+
+# ============================================================
+# 7. CREATE REBOUND SIMULATION
+# ============================================================
+
+def create_simulation():
+
+    sim = rebound.Simulation()
+
+    # REBOUND astronomical units:
+    #
+    # distance = AU
+    # mass     = Solar mass
+    # time     = year / 2π
+    #
+    # Therefore G = 1
+    sim.G = 1.0
+
+    # High-accuracy general integrator
+    sim.integrator = "ias15"
+
+    print("\nDownloading initial states from NASA/JPL Horizons...\n")
+
+    all_bodies = PLANETS + JUPITER_MOONS
+
+    for body in all_bodies:
+
+        print("Loading:", body)
+
+        position, velocity = get_horizons_state(body)
+
+        # Horizons velocity is AU/day.
+        #
+        # REBOUND time unit is year/(2π).
+        #
+        # Convert AU/day → AU / (year/2π)
+        #
+        # 1 year ≈ 365.25 days
+
+        velocity = velocity * 365.25 / (2.0 * np.pi)
+
+        mass = BODY_MASSES[body]
+
+        sim.add(
+            m=mass,
+            x=position[0],
+            y=position[1],
+            z=position[2],
+            vx=velocity[0],
+            vy=velocity[1],
+            vz=velocity[2]
+        )
+
+    # Move the entire system to its center of mass.
+    sim.move_to_com()
+
+    return sim
+
+
+# ============================================================
+# 8. CREATE SIMULATION
+# ============================================================
+
+sim = create_simulation()
+
+print("\nTotal particles:", sim.N)
+
+
+# ============================================================
+# 9. STORE INITIAL POSITIONS
+# ============================================================
+
+body_names = PLANETS + JUPITER_MOONS
+
+positions = {
+    body: np.zeros((N_FRAMES, 3))
+    for body in body_names
+}
+
+
+# ============================================================
+# 10. REBOUND TIME
+#
+# REBOUND time unit:
+#
+#     T = year / (2π)
+#
+# Therefore:
+#
+#     1 year = 2π REBOUND time units
+# ============================================================
+
+times = np.linspace(
+    0,
+    SIMULATION_YEARS * 2.0 * np.pi,
+    N_FRAMES
+)
+
+
+# ============================================================
+# 11. INTEGRATE THE SYSTEM
+# ============================================================
+
+print("\nStarting REBOUND integration...\n")
+
+for frame, t in enumerate(times):
+
+    sim.integrate(t)
+
+    for i, body in enumerate(body_names):
+
+        particle = sim.particles[i]
+
+        positions[body][frame] = [
+            particle.x,
+            particle.y,
+            particle.z
+        ]
+
+print("Integration completed.")
+
+
+# ============================================================
+# 12. VISUAL SCALE
+#
+# The actual Solar System is enormous compared with
+# Jupiter's moon system.
+#
+# Therefore the visualization uses different scales.
+#
+# IMPORTANT:
+# This changes ONLY the display.
+# It does NOT change the physics.
+# ============================================================
+
+def solar_visual_position(position):
+
+    x, y, z = position
+
+    r = np.sqrt(x*x + y*y + z*z)
+
+    if r == 0:
+        return np.array([0.0, 0.0, 0.0])
+
+    # Square-root compression
+    scale = np.sqrt(r) / r
+
+    return np.array([
+        x * scale,
+        y * scale,
+        z * scale
+    ])
+
+
+# Apply visual transformation
+
+visual_positions = {
+    body: np.zeros_like(positions[body])
+    for body in body_names
+}
+
+
+for body in body_names:
+
+    for i in range(N_FRAMES):
+
+        visual_positions[body][i] = \
+            solar_visual_position(positions[body][i])
+
+
+# ============================================================
+# 13. CREATE 3D FIGURE
+# ============================================================
+
+fig = go.Figure()
+
+
+# ============================================================
+# 14. COLORS
+# ============================================================
+
+BODY_COLORS = {
+
+    "Sun": "gold",
+
+    "Mercury": "gray",
+    "Venus": "orange",
+    "Earth": "royalblue",
+    "Mars": "red",
+
+    "Jupiter": "peru",
+    "Saturn": "khaki",
+    "Uranus": "lightblue",
+    "Neptune": "blue",
+
+    "Io": "yellow",
+    "Europa": "white",
+    "Ganymede": "tan",
+    "Callisto": "brown",
+
+    "Amalthea": "darkred",
+    "Himalia": "lightgray",
+    "Elara": "gray",
+    "Pasiphae": "darkgray",
+    "Sinope": "gray",
+    "Lysithea": "silver",
+    "Carme": "darkgray",
+    "Ananke": "gray"
+}
+
+
+# ============================================================
+# 15. INITIAL BODY MARKERS
+# ============================================================
+
+for body in body_names:
+
+    p = visual_positions[body][0]
+
+    fig.add_trace(
+        go.Scatter3d(
+
+            x=[p[0]],
+            y=[p[1]],
+            z=[p[2]],
+
+            mode="markers+text",
+
+            text=[body],
+            textposition="top center",
+
+            marker=dict(
+                size=DISPLAY_RADIUS[body],
+                color=BODY_COLORS[body],
+                opacity=0.9
+            ),
+
+            name=body
+        )
+    )
+
+
+# ============================================================
+# 16. ORBIT TRAILS
+# ============================================================
+
+# We don't show trails for every moon initially
+# because the figure becomes crowded.
+
+for body in PLANETS:
+
+    if body == "Sun":
+        continue
+
+    trail = visual_positions[body]
+
+    fig.add_trace(
+        go.Scatter3d(
+
+            x=trail[:, 0],
+            y=trail[:, 1],
+            z=trail[:, 2],
+
+            mode="lines",
+
+            line=dict(
+                width=1
+            ),
+
+            opacity=0.35,
+
+            name=body + " orbit",
+
+            showlegend=False
+        )
+    )
+
+
+# ============================================================
+# 17. ANIMATION FRAMES
+# ============================================================
+
+animation_frames = []
+
+
+for frame_number in range(N_FRAMES):
+
+    frame_data = []
+
+    # Planet/moon markers
+    for body in body_names:
+
+        p = visual_positions[body][frame_number]
+
+        frame_data.append(
+            go.Scatter3d(
+
+                x=[p[0]],
+                y=[p[1]],
+                z=[p[2]],
+
+                mode="markers+text",
+
+                text=[body],
+                textposition="top center",
+
+                marker=dict(
+                    size=DISPLAY_RADIUS[body],
+                    color=BODY_COLORS[body],
+                    opacity=0.9
+                )
+            )
+        )
+
+    animation_frames.append(
+        go.Frame(
+            data=frame_data,
+            name=str(frame_number)
+        )
+    )
+
+
+fig.frames = animation_frames
+
+
+# ============================================================
+# 18. ANIMATION CONTROLS
+# ============================================================
+
+fig.update_layout(
+
+    title="3D Solar System + Jupiter's Moons",
+
+    scene=dict(
+
+        xaxis=dict(
+            title="X (visual AU)"
+        ),
+
+        yaxis=dict(
+            title="Y (visual AU)"
+        ),
+
+        zaxis=dict(
+            title="Z (visual AU)"
+        ),
+
+        aspectmode="cube"
+    ),
+
+    updatemenus=[
+
+        dict(
+
+            type="buttons",
+
+            showactive=False,
+
+            buttons=[
+
+                dict(
+
+                    label="▶ Play",
+
+                    method="animate",
+
+                    args=[
+                        None,
+
+                        dict(
+                            frame=dict(
+                                duration=50,
+                                redraw=True
+                            ),
+
+                            transition=dict(
+                                duration=0
+                            ),
+
+                            fromcurrent=True
+                        )
+                    ]
+                ),
+
+                dict(
+
+                    label="⏸ Pause",
+
+                    method="animate",
+
+                    args=[
+                        [None],
+
+                        dict(
+                            frame=dict(
+                                duration=0,
+                                redraw=False
+                            ),
+
+                            mode="immediate",
+
+                            transition=dict(
+                                duration=0
+                            )
+                        )
+                    ]
+                )
+            ]
+        )
+    ],
+
+    sliders=[
+
+        dict(
+
+            active=0,
+
+            currentvalue=dict(
+                prefix="Frame: "
+            ),
+
+            steps=[
+
+                dict(
+
+                    label=str(i),
+
+                    method="animate",
+
+                    args=[
+                        [str(i)],
+
+                        dict(
+                            mode="immediate",
+
+                            frame=dict(
+                                duration=0,
+                                redraw=True
+                            ),
+
+                            transition=dict(
+                                duration=0
+                            )
+                        )
+                    ]
+                )
+
+                for i in range(N_FRAMES)
+            ]
+        )
+    ],
+
+    template="plotly_dark",
+
+    width=1100,
+    height=800
+)
+
+
+# ============================================================
+# 19. SHOW
+# ============================================================
+
+fig.show()

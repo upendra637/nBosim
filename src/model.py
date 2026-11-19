@@ -1,440 +1,260 @@
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+from IPython.display import HTML
 
-# Acceleration
-def acceleration(masses, x_pos, y_pos, z_pos, G=39.478):
-    """
-    Calculate the acceleration of each mass due to gravitational forces
-    from all other masses.
+# ============================================================
+# 1. CONSTANTS
+# ============================================================
 
-    Parameters:
-    masses (list): List of masses.
-    x_pos (list): List of x positions of the masses.
-    y_pos (list): List of y positions of the masses.
-    z_pos (list): List of z positions of the masses.
-    G (float): Gravitational constant.
+G = 6.67430e-11
 
-    Returns:
-    ax (list): List of x accelerations for each mass.
-    ay (list): List of y accelerations for each mass.
-    az (list): List of z accelerations for each mass.
-    """
-
-    n = len(masses)
-
-    ax = np.zeros(n)
-    ay = np.zeros(n)
-    az = np.zeros(n)
+M_sun = 1.989e30
+M_mercury = 3.301e23
 
 
-    for i in range(n):
+# ============================================================
+# 2. INITIAL CONDITIONS
+# ============================================================
 
-        Fx, Fy, Fz = 0, 0, 0
+# Sun
+x_sun = 0.0
+y_sun = 0.0
 
-        for j in range(n):
-
-            if i != j:
-
-                dx = x_pos[j] - x_pos[i]
-                dy = y_pos[j] - y_pos[i]
-                dz = z_pos[j] - z_pos[i]
-
-                r = np.sqrt(dx**2 + dy**2 + dz**2)
-
-                Fx += G * masses[i] * masses[j] * dx / (r**3)
-                Fy += G * masses[i] * masses[j] * dy / (r**3)
-                Fz += G * masses[i] * masses[j] * dz / (r**3)
-
-        ax[i] += Fx / masses[i]
-        ay[i] += Fy / masses[i]
-        az[i] += Fz / masses[i]
-
-    return ax, ay, az
+vx_sun = 0.0
+vy_sun = 0.0
 
 
-# velocity
-def velocity(masses, x_pos, y_pos, z_pos, ux, uy, uz, dt, G=39.478):
-    """
-    Calculate the velocity of each mass based on its acceleration.
+# Mercury
+x_mercury = 5.79e10
+y_mercury = 0.0
 
-    Returns:
-    vx (list): List of x velocities for each mass.
-    vy (list): List of y velocities for each mass.
-    vz (list): List of z velocities for each mass.
-    """
-
-    ax, ay, az = acceleration(
-        masses,
-        x_pos,
-        y_pos,
-        z_pos,
-        G
-    )
+vx_mercury = 0.0
+vy_mercury = 4.78e4
 
 
-    vx = ux + ax * dt
-    vy = uy + ay * dt
-    vz = uz + az * dt
+# ============================================================
+# 3. TIME SETTINGS
+# ============================================================
+
+dt = 10000          # time step in seconds
+steps = 30000       # number of steps
+
+time = np.arange(steps) * dt
 
 
-    return vx, vy, vz
+# ============================================================
+# 4. ARRAYS TO STORE POSITIONS
+# ============================================================
+
+sun_x = np.zeros(steps)
+sun_y = np.zeros(steps)
+
+mercury_x = np.zeros(steps)
+mercury_y = np.zeros(steps)
 
 
-# position
-def position(masses, x_pos, y_pos, z_pos, ux, uy, uz, dt, G=39.478):
-    """
-    Calculate the position of each mass based on its velocity.
+# Initial positions
+sun_x[0] = x_sun
+sun_y[0] = y_sun
 
-    Returns:
-    x_pos (list): Updated x positions.
-    y_pos (list): Updated y positions.
-    z_pos (list): Updated z positions.
-    ux (list): Updated x velocities.
-    uy (list): Updated y velocities.
-    uz (list): Updated z velocities.
-    """
-
-    vx, vy, vz = velocity(
-        masses,
-        x_pos,
-        y_pos,
-        z_pos,
-        ux,
-        uy,
-        uz,
-        dt,
-        G
-    )
-
-    x = x_pos + vx * dt
-    y = y_pos + vy * dt
-    z = z_pos + vz * dt
+mercury_x[0] = x_mercury
+mercury_y[0] = y_mercury
 
 
-    # Update the current position and velocity
-    x_pos = x
-    y_pos = y
-    z_pos = z
+# ============================================================
+# 5. TWO-BODY SIMULATION
+# ============================================================
 
-    ux = vx
-    uy = vy
-    uz = vz
+for i in range(steps - 1):
 
+    # --------------------------------------------------------
+    # Distance between Sun and Mercury
+    # --------------------------------------------------------
 
-    return x_pos, y_pos, z_pos, ux, uy, uz
+    dx = mercury_x[i] - sun_x[i]
+    dy = mercury_y[i] - sun_y[i]
 
-
-# Center of mass
-def com_frame(masses, x_pos, y_pos, z_pos, ux, uy, uz):
-
-    """
-    Calculate the center of mass position and velocity
-    for the system of masses.
-    """
-
-    total_mass = np.sum(masses)
-
-    com_x = np.sum(masses * x_pos) / total_mass
-    com_y = np.sum(masses * y_pos) / total_mass
-    com_z = np.sum(masses * z_pos) / total_mass
-
-    com_vx = np.sum(masses * ux) / total_mass
-    com_vy = np.sum(masses * uy) / total_mass
-    com_vz = np.sum(masses * uz) / total_mass
-
-    return com_x, com_y, com_z, com_vx, com_vy, com_vz
+    r = np.sqrt(dx**2 + dy**2)
 
 
-# Position relative to center of mass
-def relative_position(masses, x_pos, y_pos, z_pos, ux, uy, uz):
+    # --------------------------------------------------------
+    # Gravitational force
+    # --------------------------------------------------------
 
-    """
-    Calculate the position and velocity of each mass
-    relative to the center of mass.
-    """
+    F_x = G * M_sun * M_mercury * dx / r**3
+    F_y = G * M_sun * M_mercury * dy / r**3
 
-    com_x, com_y, com_z, com_vx, com_vy, com_vz = com_frame(
-        masses,
-        x_pos,
-        y_pos,
-        z_pos,
-        ux,
-        uy,
-        uz
-    )
 
-    x_relative = x_pos - com_x
-    y_relative = y_pos - com_y
-    z_relative = z_pos - com_z
+    # --------------------------------------------------------
+    # Accelerations
+    # --------------------------------------------------------
 
-    vx_relative = ux - com_vx
-    vy_relative = uy - com_vy
-    vz_relative = uz - com_vz
+    # Sun
+    ax_sun = F_x / M_sun
+    ay_sun = F_y / M_sun
+
+    # Mercury
+    ax_mercury = -F_x / M_mercury
+    ay_mercury = -F_y / M_mercury
+
+
+    # --------------------------------------------------------
+    # Velocities
+    # --------------------------------------------------------
+
+    vx_sun += ax_sun * dt
+    vy_sun += ay_sun * dt
+
+    vx_mercury += ax_mercury * dt
+    vy_mercury += ay_mercury * dt
+
+
+    # --------------------------------------------------------
+    # Positions
+    # --------------------------------------------------------
+
+    sun_x[i + 1] = sun_x[i] + vx_sun * dt
+    sun_y[i + 1] = sun_y[i] + vy_sun * dt
+
+    mercury_x[i + 1] = mercury_x[i] + vx_mercury * dt
+    mercury_y[i + 1] = mercury_y[i] + vy_mercury * dt
+
+
+# ============================================================
+# 6. CREATE ANIMATION
+# ============================================================
+
+fig, ax = plt.subplots(figsize=(8, 8))
+
+# Determine plot limits
+max_range = 1.2 * np.max(
+    np.sqrt(mercury_x**2 + mercury_y**2)
+)
+
+ax.set_xlim(-max_range, max_range)
+ax.set_ylim(-max_range, max_range)
+
+ax.set_xlabel("x (m)")
+ax.set_ylabel("y (m)")
+ax.set_title("Two-Body Problem: Sun–Mercury")
+
+ax.grid(True)
+ax.set_aspect("equal")
+
+
+# ============================================================
+# 7. OBJECTS THAT WILL MOVE
+# ============================================================
+
+# Sun
+sun_plot, = ax.plot(
+    [], [],
+    'o',
+    markersize=12,
+    label="Sun"
+)
+
+# Mercury
+mercury_plot, = ax.plot(
+    [],
+    [],
+    'o',
+    markersize=6,
+    label="Mercury"
+)
+
+# Mercury orbit trail
+orbit_line, = ax.plot(
+    [],
+    [],
+    '-',
+    linewidth=1
+)
+
+# Time text
+time_text = ax.text(
+    0.02,
+    0.95,
+    '',
+    transform=ax.transAxes
+)
+
+ax.legend()
+
+
+# ============================================================
+# 8. INITIALIZATION FUNCTION
+# ============================================================
+
+def init():
+
+    sun_plot.set_data([], [])
+
+    mercury_plot.set_data([], [])
+
+    orbit_line.set_data([], [])
+
+    time_text.set_text('')
 
     return (
-        x_relative,
-        y_relative,
-        z_relative,
-        vx_relative,
-        vy_relative,
-        vz_relative
+        sun_plot,
+        mercury_plot,
+        orbit_line,
+        time_text
     )
 
 
-# Energy
-def energy(masses, x_pos, y_pos, z_pos, ux, uy, uz, G=39.478):
+# ============================================================
+# 9. ANIMATION UPDATE FUNCTION
+# ============================================================
 
-    """
-    Calculate the total kinetic energy, gravitational potential energy
-    and total energy of the system.
-    """
+def update(frame):
 
-    n = len(masses)
-
-    # Kinetic energy
-    kinetic_energy = 0
-
-    for i in range(n):
-
-        velocity_squared = (
-            ux[i]**2 +
-            uy[i]**2 +
-            uz[i]**2
-        )
-
-        kinetic_energy += 0.5 * masses[i] * velocity_squared
-
-
-    # Potential energy
-    potential_energy = 0
-
-    for i in range(n):
-
-        for j in range(i + 1, n):
-
-            dx = x_pos[j] - x_pos[i]
-            dy = y_pos[j] - y_pos[i]
-            dz = z_pos[j] - z_pos[i]
-
-            r = np.sqrt(
-                dx**2 +
-                dy**2 +
-                dz**2
-            )
-
-            potential_energy -= (
-                G * masses[i] * masses[j] / r
-            )
-
-
-    # Total energy
-    total_energy = kinetic_energy + potential_energy
-
-    return kinetic_energy, potential_energy, total_energy
-
-
-
-
-
-
-
-
-
-# ==========================================================================================
-import os
-import pandas as pd
-
-# masses (solar masses)
-masses = np.array(
-    [1.0,
-    1.660e-7,
-    2.448e-6,
-    3.003e-6,
-    3.227e-7,
-    9.545e-4,
-    2.857e-4,
-    4.366e-5,
-    5.151e-5,
-    6.55e-9]
-)
-
-
-# average orbital distances from Sun (AU)
-X = np.array(
-    [0.0,
-     0.387,
-     0.723,
-     1.000,
-     1.524,
-     5.203,
-     9.537,
-     19.191,
-     30.07,
-     39.48]
-)
-
-y = np.zeros_like(X)
-z = np.zeros_like(X)
-
-
-# average orbital velocities (AU/year)
-uy = np.array(
-    [0.0,
-     10.07,
-     7.39,
-     6.28,
-     5.09,
-     2.62,
-     2.12,
-     1.48,
-     1.14,
-     0.90]
-)
-
-ux = np.zeros_like(X)
-uz = np.zeros_like(X)
-
-
-# orbital inclinations (degrees)
-inclination = np.array(
-    [0.0,
-     7.00,
-     3.39,
-     0.00,
-     1.85,
-     1.31,
-     2.49,
-     0.77,
-     1.77,
-     17.15]
-)
-
-
-# Convert inclination from degrees to radians
-inclination = np.radians(inclination)
-
-
-# Resolve the initial velocity into y and z components
-uz = uy * np.sin(inclination)
-uy = uy * np.cos(inclination)
-
-dt = 0.001
-N = 200000
-
-
-# Store positions
-x_pos = np.zeros((len(masses), N))
-y_pos = np.zeros((len(masses), N))
-z_pos = np.zeros((len(masses), N))
-
-# Store velocities
-ux_data = np.zeros((len(masses), N))
-uy_data = np.zeros((len(masses), N))
-uz_data = np.zeros((len(masses), N))
-
-
-for i in range(N):
-
-    X, Y, Z, ux, uy, uz = position(
-        masses,
-        X,
-        y,
-        z,
-        ux,
-        uy,
-        uz,
-        dt
+    # Current position of Sun
+    sun_plot.set_data(
+        [sun_x[frame]],
+        [sun_y[frame]]
     )
 
-    x_pos[:, i] = X
-    y_pos[:, i] = Y
-    z_pos[:, i] = Z
-
-    ux_data[:, i] = ux
-    uy_data[:, i] = uy
-    uz_data[:, i] = uz
-
-    y = Y
-    z = Z
-
-
-# Calculate positions relative to center of mass
-X_xom = np.zeros_like(x_pos)
-Y_xom = np.zeros_like(y_pos)
-Z_xom = np.zeros_like(z_pos)
-
-# velocity relative to center of mass
-vx = np.zeros_like(x_pos)
-vy = np.zeros_like(y_pos)
-vz = np.zeros_like(z_pos)
-
-# calculate positions relative to center of mass
-for i in range(N):
-
-    X_xom[:, i], Y_xom[:, i], Z_xom[:, i], vx[:, i], vy[:, i], vz[:, i] = relative_position(
-        masses,
-        x_pos[:, i],
-        y_pos[:, i],
-        z_pos[:, i],
-        ux_data[:, i],
-        uy_data[:, i],
-        uz_data[:, i]
+    # Current position of Mercury
+    mercury_plot.set_data(
+        [mercury_x[frame]],
+        [mercury_y[frame]]
     )
 
-# Calculate energy
-kinetic_energy = np.zeros(N)
-potential_energy = np.zeros(N)
-total_energy = np.zeros(N)
+    # Draw Mercury's path
+    orbit_line.set_data(
+        mercury_x[:frame + 1],
+        mercury_y[:frame + 1]
+    )
 
-for i in range(N):
+    # Convert seconds → days
+    days = time[frame] / (24 * 3600)
 
-    kinetic_energy[i], potential_energy[i], total_energy[i] = energy(
-        masses,
-        x_pos[:, i],
-        y_pos[:, i],
-        z_pos[:, i],
-        vx[:, i],
-        vy[:, i],
-        vz[:, i]
+    time_text.set_text(
+        f"Time = {days:.1f} days"
+    )
+
+    return (
+        sun_plot,
+        mercury_plot,
+        orbit_line,
+        time_text
     )
 
 
-labels = [
-    "Sun",
-    "Mercury",
-    "Venus",
-    "Earth",
-    "Mars",
-    "Jupiter",
-    "Saturn",
-    "Uranus",
-    "Neptune",
-    "Pluto"
-]
+# ============================================================
+# 10. CREATE ANIMATION
+# ============================================================
 
+ani = FuncAnimation(
+    fig,
+    update,
+    frames=steps,
+    init_func=init,
+    interval=20,
+    blit=True
+)
 
-# saving the data to a csv file
-
-os.makedirs("Data", exist_ok=True)
-
-data = {}
-
-for i in range(len(masses)):
-    data[labels[i] + "_x"] = x_pos[i, :]
-    data[labels[i] + "_y"] = y_pos[i, :]
-    data[labels[i] + "_z"] = z_pos[i, :]
-
-df = pd.DataFrame(data)
-
-df.to_csv("Data/positions.csv", index=False)
-
-# Save energy data to CSV
-
-energy_data = pd.DataFrame({
-    "Kinetic Energy": kinetic_energy,
-    "Potential Energy": potential_energy,
-    "Total Energy": total_energy
-})
-
-energy_data.to_csv("Data/energy.csv", index=False)
-
-
+plt.show()
